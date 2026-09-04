@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>staybnb – Bali Stays</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            airbnb: {
+              DEFAULT: '#FF385C',
+              dark: '#E31C5F',
+              light: '#FF5A5F'
+            }
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif']
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.4s ease-out forwards',
+            'slide-up': 'slideUp 0.35s ease-out forwards',
+            'scale-in': 'scaleIn 0.25s ease-out forwards',
+            'pulse-soft': 'pulseSoft 2s infinite'
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideUp: { '0%': { opacity: '0', transform: 'translateY(16px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+            scaleIn: { '0%': { opacity: '0', transform: 'scale(0.95)' }, '100%': { opacity: '1', transform: 'scale(1)' } },
+            pulseSoft: { '0%, 100%': { opacity: '1' }, '50%': { opacity: '0.7' } }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+</head>
+<body class="bg-white text-gray-900 antialiased">
+  <!-- Header -->
+  <header class="sticky top-0 z-50 bg-white border-b border-gray-200">
+    <div class="max-w-[1760px] mx-auto px-4 sm:px-6 lg:px-10 h-16 sm:h-20 flex items-center justify-between">
+      <a href="#" class="flex items-center gap-2 group" onclick="location.reload()">
+        <div class="w-8 h-8 text-airbnb transition-transform group-hover:scale-110">
+          <i data-lucide="home" class="w-8 h-8"></i>
+        </div>
+        <span class="text-xl sm:text-2xl font-bold text-airbnb tracking-tight">staybnb</span>
+      </a>
+      <nav class="hidden md:flex items-center bg-gray-100 rounded-full p-1">
+        <button class="nav-tab active px-4 py-2 rounded-full text-sm font-medium transition-all" data-tab="stays">Stays</button>
+        <button class="nav-tab px-4 py-2 rounded-full text-sm font-medium text-gray-500 hover:text-gray-900 transition-all" data-tab="experiences">Experiences</button>
+        <button class="nav-tab px-4 py-2 rounded-full text-sm font-medium text-gray-500 hover:text-gray-900 transition-all" data-tab="online">Online Experiences</button>
+      </nav>
+      <div class="flex items-center gap-1 sm:gap-2">
+        <button id="become-host-btn" class="hidden sm:block text-sm font-medium px-3 py-2 rounded-full hover:bg-gray-100 transition-colors">Become a Host</button>
+        <button id="lang-btn" class="icon-btn p-2.5 rounded-full border border-gray-300 hover:shadow-md transition-all" title="Language / Currency">
+          <i data-lucide="globe" class="w-4 h-4"></i>
+        </button>
+        <button id="menu-btn" class="icon-btn flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full border border-gray-300 hover:shadow-md transition-all">
+          <i data-lucide="menu" class="w-4 h-4"></i>
+          <div class="w-7 h-7 rounded-full bg-gray-500 flex items-center justify-center text-white text-xs">
+            <i data-lucide="user" class="w-4 h-4"></i>
+          </div>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Search Bar -->
+  <div class="px-4 sm:px-6 lg:px-10 py-4 sm:py-5 flex justify-center">
+    <div class="search-bar w-full max-w-3xl bg-white border border-gray-300 rounded-full shadow-sm hover:shadow-md transition-shadow flex items-center overflow-hidden">
+      <div class="search-field flex-1 px-5 py-3 cursor-pointer hover:bg-gray-50 transition-colors rounded-l-full" id="location-field">
+        <label class="block text-xs font-semibold text-gray-900">Location</label>
+        <input type="text" id="location-input" value="Bali, Indonesia" class="w-full text-sm text-gray-700 bg-transparent border-none outline-none cursor-pointer" placeholder="Where are you going?">
+      </div>
+      <div class="w-px h-8 bg-gray-300"></div>
+      <div class="search-field flex-1 px-5 py-3 cursor-pointer hover:bg-gray-50 transition-colors" id="dates-field">
+        <label class="block text-xs font-semibold text-gray-900">Dates</label>
+        <input type="text" id="dates-input" value="Oct 12 – Oct 18" readonly class="w-full text-sm text-gray-700 bg-transparent border-none outline-none cursor-pointer">
+      </div>
+      <div class="w-px h-8 bg-gray-300"></div>
+      <div class="search-field flex-1 px-5 py-3 cursor-pointer hover:bg-gray-50 transition-colors" id="guests-field">
+        <label class="block text-xs font-semibold text-gray-900">Guests</label>
+        <input type="text" id="guests-input" value="2 guests" readonly class="w-full text-sm text-gray-700 bg-transparent border-none outline-none cursor-pointer">
+      </div>
+      <button id="search-btn" class="m-2 w-12 h-12 rounded-full bg-airbnb hover:bg-airbnb-dark text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-md" aria-label="Search">
+        <i data-lucide="search" class="w-5 h-5"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="px-4 sm:px-6 lg:px-10 pb-4 flex items-center gap-2 overflow-x-auto scrollbar-hide">
+    <button class="filter-btn flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 text-sm font-medium whitespace-nowrap hover:border-gray-900 transition-all" data-filter="all">
+      <i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Filters
+    </button>
+    <button class="filter-btn px-4 py-2 rounded-full border border-gray-300 text-sm font-medium whitespace-nowrap hover:border-gray-900 transition-all" data-filter="price">Price</button>
+    <button class="filter-btn px-4 py-2 rounded-full border border-gray-300 text-sm font-medium whitespace-nowrap hover:border-gray-900 transition-all" data-filter="type">Type of place</button>
+    <button class="filter-btn px-4 py-2 rounded-full border border-gray-300 text-sm font-medium whitespace-nowrap hover:border-gray-900 transition-all" data-filter="free-cancel">Free cancellation</button>
+    <button class="filter-btn px-4 py-2 rounded-full border border-gray-300 text-sm font-medium whitespace-nowrap hover:border-gray-900 transition-all" data-filter="wifi">
+      <i data-lucide="wifi" class="w-3.5 h-3.5 inline mr-1"></i> Wifi
+    </button>
+    <button class="filter-btn active px-4 py-2 rounded-full border border-gray-900 bg-gray-900 text-white text-sm font-medium whitespace-nowrap transition-all" data-filter="pool">
+      <i data-lucide="waves" class="w-3.5 h-3.5 inline mr-1"></i> Pool
+    </button>
+    <button class="filter-btn px-4 py-2 rounded-full border border-gray-300 text-sm font-medium whitespace-nowrap hover:border-gray-900 transition-all" data-filter="beachfront">Beachfront</button>
+    <button class="filter-btn px-4 py-2 rounded-full border border-gray-300 text-sm font-medium whitespace-nowrap hover:border-gray-900 transition-all" data-filter="pet">
+      <i data-lucide="paw-print" class="w-3.5 h-3.5 inline mr-1"></i> Pet friendly
+    </button>
+    <button class="filter-btn px-4 py-2 rounded-full border border-gray-300 text-sm font-medium whitespace-nowrap hover:border-gray-900 transition-all" data-filter="kitchen">
+      <i data-lucide="utensils" class="w-3.5 h-3.5 inline mr-1"></i> Kitchen
+    </button>
+  </div>
+
+  <!-- Main Content -->
+  <main class="max-w-[1760px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_420px] min-h-[calc(100vh-220px)]">
+    <section class="px-4 sm:px-6 lg:px-10 pb-12">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pt-2">
+        <h1 id="results-count" class="text-xl sm:text-2xl font-semibold">6 stays in Bali</h1>
+        <div class="flex items-center gap-2 text-sm">
+          <label for="sort" class="text-gray-600">Sort by:</label>
+          <select id="sort" class="border border-gray-300 rounded-lg px-3 py-1.5 bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-airbnb/30">
+            <option value="recommended">Recommended</option>
+            <option value="price-low">Price: low to high</option>
+            <option value="price-high">Price: high to low</option>
+            <option value="rating">Top rated</option>
+          </select>
+        </div>
+      </div>
+      <div id="listings-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+    </section>
+
+    <aside class="map-section hidden lg:block sticky top-20 h-[calc(100vh-5rem)] border-l border-gray-200 bg-gray-50 relative">
+      <div id="map" class="w-full h-full z-0"></div>
+      <div class="absolute bottom-6 left-4 bg-white px-3 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-1.5 z-10">
+        <i data-lucide="map-pin" class="w-4 h-4 text-airbnb"></i> Seminyak
+      </div>
+      <button id="map-toggle" class="absolute bottom-6 right-4 bg-white px-4 py-2.5 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 z-10 hover:shadow-xl transition-shadow">
+        <i data-lucide="map" class="w-4 h-4"></i> Map
+      </button>
+    </aside>
+  </main>
+
+  <button id="mobile-map-btn" class="lg:hidden fixed bottom-6 right-6 z-40 bg-gray-900 text-white px-5 py-3 rounded-full shadow-xl flex items-center gap-2 font-medium hover:bg-black transition-all active:scale-95">
+    <i data-lucide="map" class="w-5 h-5"></i> Map
+  </button>
+
+  <!-- Listing Detail Modal -->
+  <div id="listing-modal" class="modal fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div class="modal-content bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-scale-in relative">
+      <button id="modal-close" class="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Price Filter Modal -->
+  <div id="price-modal" class="modal fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div class="modal-content bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-scale-in">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-semibold">Price range</h2>
+        <button class="close-modal w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <p class="text-sm text-gray-500 mb-4">Nightly prices before fees and taxes</p>
+      <div class="flex items-center gap-4 mb-6">
+        <div class="flex-1">
+          <label class="text-xs font-medium text-gray-500">Min price</label>
+          <div class="relative mt-1">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+            <input type="number" id="price-min" value="50" min="0" max="500" class="w-full pl-7 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-airbnb/30 focus:border-airbnb outline-none">
+          </div>
+        </div>
+        <div class="text-gray-400 mt-5">—</div>
+        <div class="flex-1">
+          <label class="text-xs font-medium text-gray-500">Max price</label>
+          <div class="relative mt-1">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+            <input type="number" id="price-max" value="300" min="0" max="1000" class="w-full pl-7 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-airbnb/30 focus:border-airbnb outline-none">
+          </div>
+        </div>
+      </div>
+      <input type="range" id="price-range" min="50" max="300" value="300" class="w-full accent-airbnb mb-6">
+      <div class="flex gap-3">
+        <button class="close-modal flex-1 py-3 rounded-lg border border-gray-300 font-medium hover:bg-gray-50 transition-colors">Clear</button>
+        <button id="apply-price" class="flex-1 py-3 rounded-lg bg-gray-900 text-white font-medium hover:bg-black transition-colors">Show stays</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Type of Place Modal -->
+  <div id="type-modal" class="modal fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div class="modal-content bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-scale-in">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-semibold">Type of place</h2>
+        <button class="close-modal w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="space-y-3">
+        <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-gray-400 cursor-pointer transition-colors has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50">
+          <input type="checkbox" name="type" value="Entire place" class="w-5 h-5 accent-airbnb rounded" checked>
+          <div><div class="font-medium">Entire place</div><div class="text-sm text-gray-500">A place all to yourself</div></div>
+        </label>
+        <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-gray-400 cursor-pointer transition-colors has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50">
+          <input type="checkbox" name="type" value="Private room" class="w-5 h-5 accent-airbnb rounded">
+          <div><div class="font-medium">Private room</div><div class="text-sm text-gray-500">Your own room in a home</div></div>
+        </label>
+        <label class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-gray-400 cursor-pointer transition-colors has-[:checked]:border-gray-900 has-[:checked]:bg-gray-50">
+          <input type="checkbox" name="type" value="Shared room" class="w-5 h-5 accent-airbnb rounded">
+          <div><div class="font-medium">Shared room</div><div class="text-sm text-gray-500">A shared space</div></div>
+        </label>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button class="close-modal flex-1 py-3 rounded-lg border border-gray-300 font-medium hover:bg-gray-50 transition-colors">Clear</button>
+        <button id="apply-type" class="flex-1 py-3 rounded-lg bg-gray-900 text-white font-medium hover:bg-black transition-colors">Show stays</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Become a Host Modal -->
+  <div id="host-modal" class="modal fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div class="modal-content bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl animate-scale-in">
+      <div class="relative h-48 bg-gradient-to-br from-airbnb to-pink-700 flex items-center justify-center">
+        <button class="close-modal absolute top-4 right-4 w-9 h-9 rounded-full bg-white/20 backdrop-blur text-white flex items-center justify-center hover:bg-white/30 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <i data-lucide="home" class="w-16 h-16 text-white/90"></i>
+      </div>
+      <div class="p-6">
+        <h2 class="text-2xl font-semibold mb-2">Become a staybnb Host</h2>
+        <p class="text-gray-600 mb-6">Earn extra income and unlock new opportunities by sharing your space.</p>
+        <ul class="space-y-3 mb-6">
+          <li class="flex items-start gap-3"><i data-lucide="dollar-sign" class="w-5 h-5 text-airbnb mt-0.5"></i><span class="text-sm">You could earn <strong>$1,200+</strong> / month on average in Bali</span></li>
+          <li class="flex items-start gap-3"><i data-lucide="shield-check" class="w-5 h-5 text-airbnb mt-0.5"></i><span class="text-sm">Host protection insurance included</span></li>
+          <li class="flex items-start gap-3"><i data-lucide="calendar-check" class="w-5 h-5 text-airbnb mt-0.5"></i><span class="text-sm">You control your availability and pricing</span></li>
+        </ul>
+        <button class="w-full py-3.5 rounded-lg bg-airbnb hover:bg-airbnb-dark text-white font-semibold transition-colors">Get started</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menu / Profile Modal -->
+  <div id="menu-modal" class="modal fixed inset-0 z-[100] hidden items-start justify-end p-4 pt-20 bg-black/40 backdrop-blur-sm">
+    <div class="modal-content bg-white rounded-2xl w-72 shadow-2xl animate-slide-up overflow-hidden">
+      <div class="p-2">
+        <button class="menu-item w-full text-left px-4 py-3 rounded-xl hover:bg-gray-50 font-medium transition-colors">Sign up</button>
+        <button class="menu-item w-full text-left px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors">Log in</button>
+        <div class="border-t border-gray-100 my-1"></div>
+        <button class="menu-item w-full text-left px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors" id="menu-host">Become a Host</button>
+        <button class="menu-item w-full text-left px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors">Help Center</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Guests Popup -->
+  <div id="guests-popup" class="popup fixed z-[90] hidden bg-white rounded-2xl shadow-xl p-5 w-80 border border-gray-100 animate-scale-in">
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <div><div class="font-medium">Adults</div><div class="text-sm text-gray-500">Ages 13+</div></div>
+        <div class="flex items-center gap-3">
+          <button class="counter-btn w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-900" data-type="adults" data-action="dec"><i data-lucide="minus" class="w-4 h-4"></i></button>
+          <span id="adults-count" class="w-6 text-center font-medium">2</span>
+          <button class="counter-btn w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-900" data-type="adults" data-action="inc"><i data-lucide="plus" class="w-4 h-4"></i></button>
+        </div>
+      </div>
+      <div class="flex items-center justify-between">
+        <div><div class="font-medium">Children</div><div class="text-sm text-gray-500">Ages 2–12</div></div>
+        <div class="flex items-center gap-3">
+          <button class="counter-btn w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-900" data-type="children" data-action="dec"><i data-lucide="minus" class="w-4 h-4"></i></button>
+          <span id="children-count" class="w-6 text-center font-medium">0</span>
+          <button class="counter-btn w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-900" data-type="children" data-action="inc"><i data-lucide="plus" class="w-4 h-4"></i></button>
+        </div>
+      </div>
+      <div class="flex items-center justify-between">
+        <div><div class="font-medium">Infants</div><div class="text-sm text-gray-500">Under 2</div></div>
+        <div class="flex items-center gap-3">
+          <button class="counter-btn w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-900" data-type="infants" data-action="dec"><i data-lucide="minus" class="w-4 h-4"></i></button>
+          <span id="infants-count" class="w-6 text-center font-medium">0</span>
+          <button class="counter-btn w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-900" data-type="infants" data-action="inc"><i data-lucide="plus" class="w-4 h-4"></i></button>
+        </div>
+      </div>
+    </div>
+    <button id="guests-done" class="mt-5 w-full py-2.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-black transition-colors">Done</button>
+  </div>
+
+  <!-- Dates Popup -->
+  <div id="dates-popup" class="popup fixed z-[90] hidden bg-white rounded-2xl shadow-xl p-5 w-80 border border-gray-100 animate-scale-in">
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div>
+        <label class="text-xs font-semibold text-gray-500">Check-in</label>
+        <input type="date" id="checkin" value="2025-10-12" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-airbnb/30 outline-none">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500">Check-out</label>
+        <input type="date" id="checkout" value="2025-10-18" class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-airbnb/30 outline-none">
+      </div>
+    </div>
+    <button id="dates-done" class="w-full py-2.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-black transition-colors">Done</button>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] hidden bg-gray-900 text-white px-5 py-3 rounded-full shadow-xl text-sm font-medium animate-slide-up"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>
